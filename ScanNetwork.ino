@@ -43,23 +43,31 @@ static void ICACHE_FLASH_ATTR scanNetworkDoneCb(void *bss_struct, STATUS status)
     n++;
   }
 
-  //ALOCA MEMÓRIA PARA OS APs
+  /*A ALOCAÇÃO DE MEMÓRIA DINÂMICA POR os_malloc DEVE SER EVITADA.
+     A ALOCAÇÃO E LIBERAÇÃO DE OBEJETOS COM TAMANHOS DIFERENTES LEVA MUITO RAPIDAMENTE
+     À FRAGMENTAÇÃO DA LIMITADA RAM NO ESP8266.
+     USE ALOCAÇÃO PARA .bss OU buffers EM TEMPO DE COMPILAÇÃO,
+     DECLARADOS COMO FUMÇÃO INTERNA ESTÁTICA OU COMO ALOCAÇÃO EM NIVEL GLOBAL.*/
+
+  /*A FUNÇÃO heapMem() EXIBE NO MONITOR SERIAL A QUANDIDADE DE MEMÓRIA LIVRE */
+
+  //ALOCA MEMÓRIA PARA OS PONTEIROS DOS APs
   scanAPs.apData = (AP **)os_malloc(sizeof(AP *)*n);
   scanAPs.numAPs = n;
 
   //ALOCA OS APs NA ESTRUTURA
   n = 0;
   bssData = (struct bss_info *)bss_struct;
+
   while (bssData != NULL) {
     if (n >= scanAPs.numAPs) {
-      //SE FALTAR MEMÓRIA O PROCESSO PARA!
+      //SE FALTAR MEMÓRIA ALOCADA O PROCESSO PARA!
       break;
     }
-    //Dados do AP salvo.
-    /*A alocação de memória dinâmica por os_malloc não deve ser usada. A alocação e liberação de objetos de tamanhos
-      diferentes leva rapidamente à fragmentação de uma quantidade limitada de RAM no esp8266.
-      Use alocações .bss e buffers em tempo de compilação, declarados como função interna estática ou como alocação em nível global.*/
+
+    //ALOCA MEMÓRIA PARA O AP n.
     scanAPs.apData[n] = (AP *)os_malloc(sizeof(AP));
+    //PASSA O AP PARA A ESTRUTURA scanAPs
     strncpy(scanAPs.apData[n]->ssid, (char*)bssData->ssid, 32);
     scanAPs.apData[n]->rssi = bssData->rssi;
     scanAPs.apData[n]->authmode = bssData->authmode;
@@ -71,17 +79,28 @@ static void ICACHE_FLASH_ATTR scanNetworkDoneCb(void *bss_struct, STATUS status)
     n++;
   }
 
+  //IMPRIME AS REDES ESCANEADAS
+  printAPs(scanAPs.apData, scanAPs.numAPs);
+
   //ORDENAÇÃO DECRESECNTE DAS BSSs PELA FORÇA DO SINAL DE RSSI
-  // compareRSSI() PRECISA DE ALTERAÇÃO
-  //qsort(scanAPs.apData, scanAPs.numAPs, sizeof(struct AP), compareRSSI);
+  apData **apDataPt = scanAPs.apData;
+  qsort(apDataPt, scanAPs.numAPs, sizeof(struct apData*), compareRSSI);
 
   scanAPs.scanInProgress = NOT_SCANNING;
 }
 
 int compareRSSI(const void *bss1, const void *bss2) {
-  int first = ((struct AP *)bss1)->rssi;
-  int second = ((struct AP *)bss2)->rssi;
-  return (second - first);
+  struct apData **firstAP = (struct apData **)bss1;
+  struct apData **secondAP = (struct apData **)bss2;
+  return ((*secondAP)->rssi - (*firstAP)->rssi);
+}
+
+void printAPs(struct apData **arrayAPs, size_t len) {
+  size_t i;
+  for (i = 0; i < len; i++) {
+    printf("[ SSID: %s \t RSSI: %d ]\n", arrayAPs[i]->ssid, arrayAPs[i]->rssi);
+  }
+  puts("--");
 }
 
 char* bssidToChar(uint8 * bssid) {
