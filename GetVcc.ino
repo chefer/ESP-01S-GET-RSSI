@@ -10,6 +10,8 @@ void getVCC() {
   // PUBLICA A VOLTAGEM
   pubVCC(voltage);
 
+  /*COLOCA A ESTAÇÃO EM MODO DE SONO PROFUNDO COM CONSUMO DE 20uA
+  * NOS TESTES O MÓDULO ESP-01S FUNCIONA COM O MINÍMO DE 1.8V*/
   if (module.voltage < SLEEP_THRESHOLD)
     ESP.deepSleep (ESP.deepSleepMax());
 }
