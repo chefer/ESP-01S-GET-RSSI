@@ -8,8 +8,16 @@ DynamicJsonDocument getRSSIData() {
   AP apLog;
 
   strcpy(apLog.ssid, (char*)WiFi.SSID().c_str());
-  apLog.rssi = wifi_station_get_rssi();
-
+  
+  if (scanAPs.scanInProgress != SCANNING) {
+    //Serial.printf("!SCANNING: %d\n", scanAPs.scanInProgress);
+    apLog.rssi = wifi_station_get_rssi();
+    rssiLast = apLog.rssi;
+  }else{
+    //Serial.printf("SCANNING: %d\n", scanAPs.scanInProgress);
+    apLog.rssi = rssiLast;
+    }
+  
   int qualityTemp = constrain(apLog.rssi, -100, -50);
   apLog.quality = map(qualityTemp, -100, -50, 0, 100);
 
